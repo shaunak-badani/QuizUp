@@ -1,0 +1,24 @@
+.Form {
+    background-color: blanchedalmond;
+    margin : 4vh 3vw;  
+    padding : 2vh 2vw; 
+}
+
+.option-group {
+    margin : 1vh 0;
+    padding : 1vh 2vw;
+}
+
+.opt {
+    margin: 0 0.5vh;
+}
+
+.opt-group {
+    display : inline-block;
+    padding : 0 3vh;
+}
+
+.error {
+    color :red;
+    padding : 1vh 0;
+}
