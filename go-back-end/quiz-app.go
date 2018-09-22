@@ -7,26 +7,28 @@ import (
    "github.com/jinzhu/gorm"
 //    "os"
 //    "io"
-   "encoding/json"
-   _ "github.com/jinzhu/gorm/dialects/sqlite"           // If you want to use mysql or any other db, replace this line
+   "strconv"
+//    _ "github.com/jinzhu/gorm/dialects/sqlite"           // If you want to use mysql or any other db, replace this line
+   _ "github.com/lib/pq"
+   _ "github.com/mattn/go-sqlite3"
 )
 
 var db *gorm.DB                                         // declaring the db globally
 var err error
 
 type Quizzes struct {
-    Id uint `gorm:"primary_key";gorm:"AUTO_INCREMENT";json:"id"`
-    Qu_id uint `json:"qu_id`
+    Id int `gorm:"primary_key";gorm:"AUTO_INCREMENT";json:"id"`
+    Q_id uint `json:"q_id`
     Genre string `json:"genre"`
+    Ques Question
 }
 
 type Question struct {
     Id uint `json:"q_id";gorm:"primary_key"`
-    QuizId Quizzes `gorm:"foreignkey:Id";json:"quiz_id"` 
-	question string `json:"question_statement"`
+    QuizId int `sql:"type:bigint REFERENCES quizzes(id)";json:"quiz_id;` 
+	Question string `json:"question"`
 	Options string `json:"options"`
 	Answers string `json:"answers"`
-	Genre string `json:"genre"`
 	Points uint `json:"points"`
 }
 
@@ -36,56 +38,93 @@ func main() {
         fmt.Println(err)
     }
     defer db.Close()
-
-    db.AutoMigrate(&Question{},&Quizzes{})
+    db.LogMode(true)
+    db.Exec("PRAGMA foreign_keys = ON")
+    db.AutoMigrate(&Quizzes{},&Question{})
     r := gin.Default()
-    r.POST("/addQuiz",makeQuiz)
-    r.GET("/questEg",egQuestionAdd)
-    r.GET("/quizzes", GetQuizzes)                             // Creating routes for each functionality
+    r.POST("/questionadd/:genre/:q_id", CreateQuestion) // -> Add a new question to genre & id
+    r.POST("/addQuiz",makeQuiz) // -> Adding a new quiz ; of existing genre or new genre
+    r.GET("/quizzes", GetQuizzes) // -> get list of all quizzes , basically select * from quizzes
+    r.GET("/getQuiz/:genre/:id",getQuiz) // -> get a particular quiz (set of questions) , syntax written makes it a REST api
+    r.GET("/getQuestion/:q_id",getQuestion) // -> get a particular question
+    // r.GET("/genres",getGenres)
     //    r.GET("/people/:id", GetPerson)
     //    r.POST("/uploadFile",uploadFile)
-    r.GET("/getQuestion",getQuestion)
-    r.POST("/questionadd", CreateQuestion)
-    r.GET("/genres",getGenres)
-    //    r.PUT("/people/:id", UpdatePerson)
+    // r.PUT("/people/:id", UpdatePerson)
     // r.GET("/:genre/:q_id",getQuiz)
-    //    r.DELETE("/people/:id", DeletePerson)
+    // r.DELETE("/people/:id", DeletePerson)
     r.Use((cors.Default()))
     r.Run(":8080")                                           // Run on port 8080
 }
 
+func CreateQuestion(c *gin.Context) {
+    var q Question
+    g_param,i_param := c.Params.ByName("genre"),c.Params.ByName("q_id")
+    i,erri := strconv.Atoi(i_param)
+    if erri != nil {
+        fmt.Println("Error id -> string : ",erri)
+        c.JSON(404,gin.H{
+            "error" : "Genre Not Found",
+        })
+        return
+    }
+    var t Quizzes 
+    err_search := db.Where("id = ? AND genre = ?",i,g_param).First(&t).Error
+    if err_search != nil {
+        fmt.Println("Error With Search : ",err_search)
+        c.JSON(404,gin.H{
+            "error" : "Genre Not Found",
+        })
+        return
+    }
+    c.BindJSON(&q)
+    fmt.Println(q)
+    q.QuizId = t.Id
+    err_save := db.Create(&q).Error
+    if err_save != nil{
+        fmt.Println("Error While Saving to db : ",err_save)
+        c.JSON(404,gin.H{
+            "error" : err_save,
+        })
+        return
+    }
+
+    c.Header("access-control-allow-origin", "*") // Why am I doing this? Find out. Try running with this line commented
+    c.JSON(200, q)
+ }
+
 func makeQuiz(c *gin.Context){
     var quiz Quizzes
-    // req_body := *c.Request.Body
-    jsonBody := c.ContentType()
-    var req_body Quizzes
-    json.Unmarshal([]byte(jsonBody),&req_body)
-    fmt.Println(req_body.Qu_id)
-    // fmt.Println(num2)
-    // reqBody2 := string(buf2[0:num2])
-    // fmt.Println(reqBody2)
-    // for k,v := c.Request.Body {
-    //     fmt.Println("key : ",k,"value: ",v)
-    // }
-    // fmt.Println()
     c.BindJSON(&quiz)
     fmt.Println(quiz)
     db.Create(&quiz)
     c.JSON(200,quiz)
 }
 
-func egQuestionAdd(c *gin.Context) {
-    var q Question 
+func getQuiz(c *gin.Context) {
+    g,i := c.Params.ByName("genre"),c.Params.ByName("id")
     var t Quizzes
-    db.First(&t)
-    q = Question{QuizId : t , question : "1+1 = ?" , Options : "[2,3,4,5]" , Answers : "[true,false,false,false]",Genre : "Math" , Points : 5}
-    if err := db.Create(&q);err!=nil {
-        c.AbortWithStatus(400)
-        fmt.Println("Error :",err)
+    if err := db.Where("genre = ? AND qu_id = ?",g,i).First(&t).Error;err!=nil{
+        c.AbortWithStatus(404)
+        fmt.Println("Error With Quizzes: ",err)
     }
-    c.Header("access-control-allow-origin","*")
-    c.JSON(200,q)
+    fmt.Println(t)
+    rows,err := db.Table("questions").Joins("JOIN quizzes on quizzes.id = questions.quiz_id").Rows()
+    if err!=nil{
+        fmt.Println("Error on Join : ",err)
+    }
+ 
+ 
+    for rows.Next(){
+        fmt.Println(rows)
+    }
+    // var q []Question
+    // if err := db.Where("QuizId = ? ",t.).Find(&q).Error ; err != nil {
+    //     c.AbortWithStatus(404)
+    //     fmt.Println("Error With Questions: ",err)
+    // }
 
+    c.JSON(200,t)
 }
 
 func GetQuizzes(c *gin.Context) {
@@ -98,26 +137,6 @@ func GetQuizzes(c *gin.Context) {
         c.Header("access-control-allow-origin", "*") // Why am I doing this? Find out. Try running with this line commented
         c.JSON(200, quiz)
     }
-}
-
-func CreateQuestion(c *gin.Context) {
-   var q Question
-   c.BindJSON(&q)
-   fmt.Println(q , q.Id)
-   fmt.Println(q)
-   db.Create(&q)
-   c.Header("access-control-allow-origin", "*") // Why am I doing this? Find out. Try running with this line commented
-   c.JSON(200, q)
-}
-
-func getGenres(c *gin.Context) {
-    var q []Quizzes;    
-    if er := db.Table("quizzes").Select("genre").Group("genre").Scan(&q).Error; er!=nil{
-        c.AbortWithStatus(404)
-        fmt.Println(er)
-    }
-    c.Header("access-control-allow-origin","*")
-    c.JSON(200,q)
 }
 
 func getQuestion(c *gin.Context){
