@@ -25,7 +25,7 @@ type Quizzes struct {
 
 type Question struct {
     Id uint `json:"q_id";gorm:"primary_key"`
-    QuizId int `sql:"type:bigint REFERENCES quizzes(id)";json:"quiz_id;` 
+    QuizId int `sql:"type:bigint REFERENCES quizzes(id) ON DELETE CASCADE";json:"quiz_id;` 
 	Question string `json:"question"`
 	Options string `json:"options"`
 	Answers string `json:"answers"`
@@ -45,8 +45,9 @@ func main() {
     r.POST("/questionadd/:genre/:q_id", CreateQuestion) // -> Add a new question to genre & id
     r.POST("/addQuiz",makeQuiz) // -> Adding a new quiz ; of existing genre or new genre
     r.GET("/quizzes", GetQuizzes) // -> get list of all quizzes , basically select * from quizzes
-    r.GET("/getQuiz/:genre/:id",getQuiz) // -> get a particular quiz (set of questions) , syntax written makes it a REST api
+    r.GET("/getQuiz/:genre/:q_id",getQuiz) // -> get a particular quiz (set of questions) , syntax written makes it a REST api
     r.GET("/getQuestion/:q_id",getQuestion) // -> get a particular question
+    r.DELETE("/deleteQuiz/:genre/:q_id",delQuiz)
     // r.GET("/genres",getGenres)
     //    r.GET("/people/:id", GetPerson)
     //    r.POST("/uploadFile",uploadFile)
@@ -55,6 +56,14 @@ func main() {
     // r.DELETE("/people/:id", DeletePerson)
     r.Use((cors.Default()))
     r.Run(":8080")                                           // Run on port 8080
+}
+
+func makeQuiz(c *gin.Context){
+    var quiz Quizzes
+    c.BindJSON(&quiz)
+    fmt.Println(quiz)
+    db.Create(&quiz)
+    c.JSON(200,quiz)
 }
 
 func CreateQuestion(c *gin.Context) {
@@ -69,7 +78,7 @@ func CreateQuestion(c *gin.Context) {
         return
     }
     var t Quizzes 
-    err_search := db.Where("id = ? AND genre = ?",i,g_param).First(&t).Error
+    err_search := db.Where("q_id = ? AND genre = ?",i,g_param).First(&t).Error
     if err_search != nil {
         fmt.Println("Error With Search : ",err_search)
         c.JSON(404,gin.H{
@@ -93,12 +102,28 @@ func CreateQuestion(c *gin.Context) {
     c.JSON(200, q)
  }
 
-func makeQuiz(c *gin.Context){
-    var quiz Quizzes
-    c.BindJSON(&quiz)
-    fmt.Println(quiz)
-    db.Create(&quiz)
-    c.JSON(200,quiz)
+func delQuiz(c *gin.Context){
+    var q Quizzes
+    g_param,i_param := c.Params.ByName("genre"),c.Params.ByName("q_id")
+    i,erri := strconv.Atoi(i_param)
+    if erri != nil{
+        fmt.Println("Error with Conversion to string : ",erri)
+        c.JSON(404,gin.H{
+            "error" : err,
+        })
+        return
+    }
+    err = db.Where("q_id = ? AND genre =?",i,g_param).Delete(&q).Error
+    if err != nil{
+        fmt.Println("Error with Deletion : ",err)
+        c.JSON(404,gin.H{
+            "error" : err,
+        })
+        return
+    }
+    c.Header("access-control-allow-origin","*")
+    c.JSON(200,q)
+    
 }
 
 func getQuiz(c *gin.Context) {
