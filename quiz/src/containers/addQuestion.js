@@ -1,4 +1,4 @@
-import React, { Component } from 'react';
+import React, { Component,Fragment } from 'react';
 import './addQuestion.css';
 
 class AddQuestion extends Component {
@@ -10,13 +10,39 @@ class AddQuestion extends Component {
             error : null,
             data : {
                 QuizId : 1,
-                question : "",
-                Options : [],
+                Question : "",
+                Options : ["","","",""],
                 Answers : [false,false,false,false],
                 Genre : "",
                 Points : 1
             }
         }
+    } 
+
+    componentDidMount(){
+        if(this.props.mode==="add")
+        {
+            let y = {...this.state.data};
+            y.QuizId = Number(this.props.id);
+            y.Genre = this.props.genre;
+            this.setState({data : y});
+            return
+        }
+        fetch('http://localhost:8080/getQuestion/'+this.props.id)
+            .then(res => res.json())
+                .then(data => {
+                    data.options = JSON.parse(data.options);
+                    data.answers = JSON.parse(data.answers);
+                    let x = {
+                        QuizId : data.quiz_id,
+                        Question : data.question,
+                        Options : data.options,
+                        Answers : data.answers,
+                        Genre : data.genre,
+                        Points : data.points
+                    }
+                    this.setState({data : x});
+                });
     }
 
     onQuizIdChange = (event) => {
@@ -28,7 +54,7 @@ class AddQuestion extends Component {
 
     onQuestionChange = (event) => {
         let x = {...this.state.data};
-        x['question'] = event.target.value;
+        x['Question'] = event.target.value;
         this.setState({data : x});
     }
 
@@ -40,9 +66,9 @@ class AddQuestion extends Component {
         this.setState({data: y});
     }
 
-    onAnswerChange = (key) => {
+    onAnswerChange = (event,key) => {
         let x = [...this.state.data.Answers];
-        x[key] = !x[key];
+        x[key] = event.target.checked;
         let y = {...this.state.data , 
                 Answers : x}
         this.setState({data : y});
@@ -73,23 +99,47 @@ class AddQuestion extends Component {
             this.setState({error : null});
         dataJSON['Answers'] = JSON.stringify([...dataJSON['Answers']]);
         dataJSON['Options'] = JSON.stringify([...dataJSON['Options']]);
-        fetch('http://localhost:8080/questionadd', {
-        method: 'POST',
-        body: JSON.stringify(dataJSON),
-            })
-        .then(response => {
-            if(response.status >= 200 && response.status < 300)
-            {
-                this.setState({submitted : true});
-            }
-            else if(response.status === 400)
-            {console.log("Bad request")}
-            else
-            {console.log("Request not sent successfully")}
-        })
-        .catch(error => {
-            console.log('ERROR : ',error)
-        })
+        if(this.props.method==="put"){
+            fetch('http://localhost:8080/question/'+this.props.id, {
+                method: 'PUT',
+                body: JSON.stringify(dataJSON),
+                    })
+                .then(response => {
+                    if(response.status >= 200 && response.status < 300)
+                    {
+                        this.setState({submitted : true});
+                    }
+                    else if(response.status === 400)
+                    {console.log("Bad request")}
+                    else
+                    {console.log("Request not sent successfully")}
+                })  
+                .catch(error => {
+                    console.log('ERROR : ',error)
+            })    
+        }
+        else if(this.props.method==="post"){
+            console.log(JSON.stringify(dataJSON));
+            fetch('http://localhost:8080/questionadd/'+this.props.genre + '/'+this.props.id, {
+            method: 'POST',
+            body: JSON.stringify(dataJSON),
+                })
+                .then(response => {
+                    if(response.status >= 200 && response.status < 300)
+                        this.setState({submitted : true});
+                    else if(response.status === 400)
+                        console.log("Bad request");
+                    else
+                        console.log("Request not sent successfully");
+                    return response.json()
+                }).then(data => console.log(data))  
+                .catch(error => {
+                    console.log('ERROR : ',error)
+                })
+        }
+        else{
+            console.log("Request not sent");
+        }
     }
 
     formValidation = () => {
@@ -107,19 +157,56 @@ class AddQuestion extends Component {
 
     render(){
         var nums = Array.apply(null, {length: 5}).map(Number.call, Number); // nums = [0,1,2,3,4]
-        var nums2 = Array.apply(null, {length: 20}).map(Number.call, Number); // nums = [0,1,2,3,4,5,...20]
+        var nums2 = Array.apply(null, {length: 20}).map(Number.call, Number); // nums2 = [0,1,2,3,4,5,...19]
 
-        let q = (
-            <form className="Form">
+        let genre = (
+            <Fragment>
+                <label htmlFor="genre">Genre : </label>
+                    <input type="text" value={this.state.data.Genre} className="form-control" onChange={this.genreHandler} placeholder="E.g. , Math" />
+                    <hr />
+            </Fragment>
+        );
+
+        let quizID = (
+            <div className="form-group">
+                <label htmlFor="points" style={{'display' : 'block'}}>Quiz Id :</label>
+                    <select className="form-control" value={this.state.data.QuizId} onChange = {this.onQuizIdChange}>
+                        {nums2.map(a => <option value={a+1} key={a+1}>{a+1}</option>)}
+                    </select>
+            </div>
+        );
+
+        if(this.props.mode==="edit")
+        { 
+            genre = null;
+            quizID = null;
+        }
+
+            if(this.props.mode==="add")
+            {
+                quizID = (
                 <div className="form-group">
                     <label htmlFor="points" style={{'display' : 'block'}}>Quiz Id :</label>
-                        <select className="form-control" onChange = {this.onQuizIdChange}>
+                        <select className="form-control inp-disabled" value={this.state.data.QuizId} disabled onChange={this.onQuizIdChange}>
                             {nums2.map(a => <option value={a+1} key={a+1}>{a+1}</option>)}
                         </select>
                 </div>
+                );
+                genre = (
+                    <Fragment>
+                        <label htmlFor="genre">Genre : </label>
+                            <input type="text" value={this.props.genre} disabled className="form-control inp-disabled" onChange={this.genreHandler} placeholder="E.g. , Math" />
+                            <hr />
+                    </Fragment>
+                );
+            }
+
+            let q = (
+            <form className="Form">
+                {quizID}
                 <div className="form-group">
                     <label htmlFor="question">Question: </label>
-                    <input type="text" id="question" className="form-control" style={{'width': '50%'}} placeholder="E.g. 1+1 = ?" onChange={this.onQuestionChange}/>
+                    <input type="text" value={this.state.data.Question} id="question" className="form-control" style={{'width': '50%'}} placeholder="E.g. 1+1 = ?" onChange={this.onQuestionChange}/>
                 </div>
                 <hr />
                 <div className="form-group">
@@ -128,7 +215,7 @@ class AddQuestion extends Component {
                     (
                     <div  key = {index} className="option-group">
                         <span className="opt">{opt.toUpperCase()+":"}</span>
-                        <input type="text" className="form-control" ref={opt} placeholder={opt} onChange={(event) => this.onOptionsChange(event,index)} />
+                        <input type="text" value={this.state.data.Options[index]} className="form-control" ref={opt} placeholder={opt} onChange={(event) => this.onOptionsChange(event,index)} />
                     </div>)
                     )}
                 </div>
@@ -138,21 +225,19 @@ class AddQuestion extends Component {
                     {['a','b','c','d'].map((opt,index)=>(
                     <span key = {index}>
                         <span className="opt-group">{opt.toUpperCase()+":"}</span>
-                        <input type="checkbox" onClick={()=>this.onAnswerChange(index)} />
+                        <input type="checkbox" onChange={(event)=>this.onAnswerChange(event,index)} checked={this.state.data.Answers[index]}/>
                     </span>
                     )
                 )}
                 </div>
                 <hr />
-                <label htmlFor="genre">Genre : </label>
-                <input type="text" className="form-control" onChange={this.genreHandler} placeholder="E.g. , Math" />
-                <hr />
+                {genre}
                 <div className="form-group">
-                    <label htmlFor="points" style={{'display' : 'block'}}>Points :</label>
-                        <select className="form-control" onChange = {this.setPoints}>
-                            {nums.map(a => <option value={a+1} key={a+1}>{a+1}</option>)}
-                        </select>
-                </div>
+                        <label htmlFor="points" style={{'display' : 'block'}}>Points :</label>
+                            <select className="form-control" value={this.state.data.Points} onChange = {this.setPoints}>
+                                {nums.map(a => <option value={a+1} key={a+1}>{a+1}</option>)}
+                            </select>
+                    </div>
                 <hr />
                 <button onClick={this.sendQuestion} className="btn btn-success"> Add Question !</button>
                 <div className="error">{this.state.error}</div>

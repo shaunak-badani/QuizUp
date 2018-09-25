@@ -22,3 +22,6 @@
     color :red;
     padding : 1vh 0;
 }
+.inp-disabled {
+    cursor : not-allowed;
+}

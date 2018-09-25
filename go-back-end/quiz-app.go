@@ -42,15 +42,16 @@ func main() {
     db.Exec("PRAGMA foreign_keys = ON")
     db.AutoMigrate(&Quizzes{},&Question{})
     r := gin.Default()
-    r.POST("/questionadd/:genre/:q_id", CreateQuestion) // -> Add a new question to genre & id
+    r.POST("/questionadd/:genre/:q_id", CreateQuestion) // -> Add a new question to genre & id    
     r.POST("/addQuiz",makeQuiz) // -> Adding a new quiz ; of existing genre or new genre
-    r.GET("/quizzes", GetQuizzes) // -> get list of all quizzes , basically select * from quizzes
+    r.GET("/quizzes", getQuizzes) // -> get list of all quizzes , basically select * from quizzes
     r.GET("/getQuiz/:genre/:q_id",getQuiz) // -> get a particular quiz (set of questions) , syntax written makes it a REST api
     r.GET("/getQuestion/:q_id",getQuestion) // -> get a particular question
-    r.DELETE("/deleteQuiz/:genre/:q_id",delQuiz)
-    // r.GET("/genres",getGenres)
-    //    r.GET("/people/:id", GetPerson)
-    //    r.POST("/uploadFile",uploadFile)
+    r.DELETE("/deleteQuiz/:genre/:q_id",delQuiz) //-> delete a whole quiz
+    r.DELETE("/deleteQuestion/:q_id",delQuestion) //->delete a question
+    r.PUT("/question/:id",editQuestion) //-> Edit a particular question
+    // r.GET("/people/:id", GetPerson)
+    // r.POST("/uploadFile",uploadFile)
     // r.PUT("/people/:id", UpdatePerson)
     // r.GET("/:genre/:q_id",getQuiz)
     // r.DELETE("/people/:id", DeletePerson)
@@ -72,10 +73,11 @@ func CreateQuestion(c *gin.Context) {
     i,erri := strconv.Atoi(i_param)
     if erri != nil {
         fmt.Println("Error id -> string : ",erri)
+        c.Header("access-allow-control-origin", "http://localhost:3000")
         c.JSON(404,gin.H{
-            "error" : "Genre Not Found",
-        })
-        return
+                "error" : "Error in string conversion",
+            })
+        // return
     }
     var t Quizzes 
     err_search := db.Where("q_id = ? AND genre = ?",i,g_param).First(&t).Error
@@ -84,7 +86,7 @@ func CreateQuestion(c *gin.Context) {
         c.JSON(404,gin.H{
             "error" : "Genre Not Found",
         })
-        return
+        // return
     }
     c.BindJSON(&q)
     fmt.Println(q)
@@ -95,12 +97,45 @@ func CreateQuestion(c *gin.Context) {
         c.JSON(404,gin.H{
             "error" : err_save,
         })
+        // return
+    }
+    c.Header("access-control-allow-origin", "http://localhost:3000") // Why am I doing this? Find out. Try running with this line commented
+    c.JSON(200, q)
+    // return
+}
+
+func getQuiz(c *gin.Context) {
+    g_param,i_param := c.Params.ByName("genre"),c.Params.ByName("q_id")
+    i,erri := strconv.Atoi(i_param)
+    if erri != nil{
+        fmt.Println("Error with string conversion -> ",erri)
+        c.JSON(404,gin.H{
+            "error" : erri,
+        })
         return
     }
-
-    c.Header("access-control-allow-origin", "*") // Why am I doing this? Find out. Try running with this line commented
-    c.JSON(200, q)
- }
+    var t []Question
+    var q Quizzes
+    err_search := db.Where("q_id = ? AND genre = ?",i,g_param).First(&q).Error
+    if err_search != nil{
+        fmt.Println("Error with Initial search -> ",err_search)
+        c.JSON(404,gin.H{
+            "error" : err_search,
+        })
+        return
+    }
+    err_search2 := db.Where("quiz_id = ?",q.Id).Find(&t).Error
+    if err_search2 != nil{
+        fmt.Println("Error with Searching for questions -> ",err_search2)
+        c.JSON(404,gin.H{
+            "error" : err_search2,
+        })
+        return
+    }
+    c.Header("access-control-allow-origin", "http://localhost:3000") // Why am I doing this? Find out. Try running with this line commented
+    c.Header("access-control-allow-credentials", "true")
+    c.JSON(200,t)
+}
 
 func delQuiz(c *gin.Context){
     var q Quizzes
@@ -123,41 +158,39 @@ func delQuiz(c *gin.Context){
     }
     c.Header("access-control-allow-origin","*")
     c.JSON(200,q)
-    
 }
 
-func getQuiz(c *gin.Context) {
-    g,i := c.Params.ByName("genre"),c.Params.ByName("id")
-    var t Quizzes
-    if err := db.Where("genre = ? AND qu_id = ?",g,i).First(&t).Error;err!=nil{
-        c.AbortWithStatus(404)
-        fmt.Println("Error With Quizzes: ",err)
+func delQuestion(c *gin.Context){
+    q_id := c.Params.ByName("q_id")
+    i,erri := strconv.Atoi(q_id)
+    if erri != nil{
+        fmt.Println("Error with Conversion to string : ",erri)
+        c.JSON(404,gin.H{
+            "error" : erri,
+        })
+        return
     }
-    fmt.Println(t)
-    rows,err := db.Table("questions").Joins("JOIN quizzes on quizzes.id = questions.quiz_id").Rows()
-    if err!=nil{
-        fmt.Println("Error on Join : ",err)
+    var q Question
+    err_find := db.Where("id = ?",i).Delete(&q).Error
+    if err_find != nil{
+        fmt.Println("Error with Conversion to string : ",err_find)
+        c.JSON(404,gin.H{
+            "error" : err_find,
+        })
+        return
     }
- 
- 
-    for rows.Next(){
-        fmt.Println(rows)
-    }
-    // var q []Question
-    // if err := db.Where("QuizId = ? ",t.).Find(&q).Error ; err != nil {
-    //     c.AbortWithStatus(404)
-    //     fmt.Println("Error With Questions: ",err)
-    // }
-
-    c.JSON(200,t)
+    c.Header("access-control-allow-origin", "*") // Why am I doing this? Find out. Try running with this line commented
+    c.JSON(200,q)
 }
 
-func GetQuizzes(c *gin.Context) {
-    //    id := c.Params.ByName("id")   
-    var quiz []Question
+func getQuizzes(c *gin.Context) {
+    var quiz []Quizzes
     if err := db.Find(&quiz).Error; err != nil {
-        c.AbortWithStatus(404)
-        fmt.Println(err)
+        fmt.Println("Error with Finding Quizzes : ",err)
+        c.JSON(404,gin.H{
+            "error" : err,
+        })
+        return
     } else {
         c.Header("access-control-allow-origin", "*") // Why am I doing this? Find out. Try running with this line commented
         c.JSON(200, quiz)
@@ -165,11 +198,52 @@ func GetQuizzes(c *gin.Context) {
 }
 
 func getQuestion(c *gin.Context){
-    var q []Question
-    // fmt.Println(q)
-    db.Find(&q)
+    var q Question
+    q_id := c.Params.ByName("q_id")
+    id,erri := strconv.Atoi(q_id)
+    if erri !=nil{
+        fmt.Println("Error with string conversion : ",erri)
+        c.JSON(404,gin.H{
+            "error" : erri,
+        })
+        return
+    }
+    err := db.Where("id = ?",id).First(&q).Error
+    if err !=nil{
+        fmt.Println("Error with Query : ",err)
+        c.JSON(404,gin.H{
+            "error" : err,
+        })
+        return
+    }
+    c.Header("access-control-allow-origin", "*") // Why am I doing this? Find out. Try running with this line commented
     c.JSON(200,q)
 }
+
+func editQuestion(c *gin.Context){
+    q_id := c.Params.ByName("id")
+    id,erri := strconv.Atoi(q_id)
+    if erri != nil{
+        fmt.Println("Error with string conversion : ",erri)
+        c.JSON(404,gin.H{
+            "error" : erri,
+        })
+        return
+    }
+    var t Question
+    err := db.Where("id = ?",id).First(&t).Error
+    if err != nil{
+        fmt.Println("Error with Query : ",err)
+        c.JSON(404,gin.H{
+            "error" : err,
+        })
+        return
+    }
+    c.BindJSON(&t)
+    db.Save(&t)
+    c.Header("access-control-allow-origin", "*") // Why am I doing this? Find out. Try running with this line commented
+    c.JSON(200,t)
+} 
 
 // func uploadFile(c *gin.Context){
 

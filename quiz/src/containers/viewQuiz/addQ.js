@@ -1,0 +1,10 @@
+import React from 'react';
+import AddQuestion from '../addQuestion';
+
+const addQ = (props) => (
+    <div>
+        <AddQuestion mode="add" genre={props.genre} id={props.id} method="post" />
+    </div>
+);
+
+export default addQ;

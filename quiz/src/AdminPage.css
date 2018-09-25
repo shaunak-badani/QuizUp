@@ -12,9 +12,9 @@
     border-bottom : 0.5vh solid black;
 }
 
-.Cust-Navbar > .Nav-Element:hover{
+.Cust-Navbar > .Nav-Element:hover , .Nav-Active{
     background-color: rgba(255,255,255,0.2);
-    border-bottom : 0.5vh solid blue;
+    border-bottom : 0.5vh solid blue !important;
     text-decoration: none;
 }
 
