@@ -1,0 +1,36 @@
+<html>
+    <title>My Page</title>
+    <style>
+        .footer-texts {
+            display: flex;
+            color:rgb(124,134,205);
+            font-family: sans-serif;
+        }
+        .footer-texts > span {
+            position: relative;
+            padding: .5rem 1rem;
+            display: flex;
+            text-align: center;
+            justify-content: center;
+            align-items: center;
+            flex: 0 1 25%;
+        }
+        .footer-texts > span:not(:last-child)::after {
+            content: '';
+            position: absolute;
+            right: -2px;
+            top: 25%;
+            width: 2px;
+            height: 50%;
+            background-color:rgb(0, 146,247);
+        }
+    </style>
+    <body>
+        <div class="footer-texts">
+            <span>First Line</span>
+            <span>ABC</span>
+            <span>Third Line<br />two lines</span>
+            <span>DEFG</span>
+          </div>
+    </body>
+</html>

@@ -1,0 +1,33 @@
+@import url('https://fonts.googleapis.com/css?family=Playfair+Display|Roboto|Rubik');
+
+.score-display{
+    font-family : 'Rubik' , sans-serif;
+    padding: 3vh 0;
+    color : #2e2e7c;
+}
+
+.v-button{
+    padding : 1.5vh 3vw;
+    margin-top: 4vh;
+}
+
+.score-display h1{
+    font-size : 70px !important;
+}
+
+.option-div{
+    height:auto;
+    box-sizing: border-box;
+    padding: 2vh 2vw;
+    margin: 2vh 4vw;
+    border-radius: 13px;
+    border : 3px solid green;
+}
+
+.question-box{
+    font-family: 'Playfair Display' , sans-serif;
+}
+
+.option-ticked{
+    background-color: cornflowerblue;
+}

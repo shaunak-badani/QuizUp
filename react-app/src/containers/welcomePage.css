@@ -1,0 +1,27 @@
+@import url('https://fonts.googleapis.com/css?family=Lato');
+.image-space {
+    background : url('./random-guy-smiling.jpg') no-repeat;
+    background-size: cover;
+    width : 50%;
+    /* display: inline-block; */
+    float: left;
+    height:92.6vh;
+}
+.data-bs{
+    background-color: #262626;
+    font-family : 'Lato' , sans-serif;
+    color: white;
+    float: left;
+    padding: 9vh 2vw;   
+    /* text-align: center; */
+    width:50%;
+    height: 92.6vh;
+}
+.btn-logout
+{
+    margin: 4vh 0;
+}
+.btn-logout button{
+    padding: 1vh 3vw;
+    font-size: 2vh;
+}
