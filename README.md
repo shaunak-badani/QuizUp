@@ -1,4 +1,4 @@
-# Welcome to QuizApp!
+# QuizApp!
 
 # Introduction to the project:
 I have to written a Go server that implements REST API and interacts with the database at the backend. The front end is a React application that is an interactive quiz.
@@ -21,9 +21,17 @@ Owner: Shaunak Badani
 
 ## Running the program:
 - Running the react app:
-	- Go to the "react-app" folder and run yarn start
-    - `yarn start`
+	- Go to the "react-app" folder, and run following commands :
+    ```
+    yarn install
+    yarn start
+    ```
 - Running the Go server:
-    - Go to the go/src folder and run `go run` command
-	- `go run quiz-app.go`
+    - Go to the go/src folder and run the following commands:
+    ```
+    sudo bash install-go.sh
+	bash requirements.txt
+	go run quiz-app.go
+    ```
+    This will start the REST API on localhost:8080
 The app will start on your default browser.

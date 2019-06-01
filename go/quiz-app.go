@@ -11,10 +11,20 @@ import (
 //    _ "github.com/jinzhu/gorm/dialects/sqlite"           // If you want to use mysql or any other db, replace this line
    _ "github.com/lib/pq"
    _ "github.com/mattn/go-sqlite3"
+   "github.com/dgrijalva/jwt-go"
+   "time"
 )
 
 var db *gorm.DB                                         // declaring the db globally
 var err error
+
+// JWT params
+var jwtKey = []byte("my_secret_key")
+type Claims struct {
+    Username string `json:"username"`
+    jwt.StandardClaims
+}
+//end JWT params
 
 type Quizzes struct {
     Id int `gorm:"primary_key";json:"id"`
@@ -71,7 +81,8 @@ func main() {
     r.DELETE("/deleteQuestion/:q_id",delQuestion) //->delete a question
     r.PUT("/question/:id",editQuestion) //-> Edit a particular question
     //Routes for user
-    r.POST("/user",checkUser) //->Check if user exists
+    r.POST("/login",checkUser) // -> Check if user exists
+    r.POST("/validateToken", validateToken) // -> Validates token 
     r.POST("/userAdd",addUser) // -> Route for adding users
     r.GET("/users",viewUsers) //-> See all users
     r.DELETE("/deleteUser/:id",delUser) //-> Delete user with id specified 
@@ -468,12 +479,67 @@ func checkUser(c *gin.Context){
         fmt.Println("err -> ",er_find)
         c.Header("access-control-allow-origin","*")
         c.JSON(200,gin.H{
-            "auth" :false, 
+            "error" : "Invalid Credentials", 
         })
         return
     }
+
+    /* JWT ENCODING STARTS */
+    // Start writing the jwt token
+
+	expirationTime := time.Now().Add(5 * time.Minute)
+
+    claims := &Claims{
+		Username: u.Username,
+		StandardClaims: jwt.StandardClaims{
+			// In JWT, the expiry time is expressed as unix milliseconds
+			ExpiresAt: expirationTime.Unix(),
+		},
+    }
+    
+    token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	// Create the JWT string
+	tokenString, err := token.SignedString(jwtKey)
+	if err != nil {
+        // If there is an error in creating the JWT return an internal server error
+        fmt.Println("err -> ",err)
+        c.Header("access-control-allow-origin","*")
+        c.JSON(200,gin.H{
+            "error" : "We encountered some error while parsing the JWT token", 
+        })
+        return
+    }
+    /*JWT ENCODING ENDS*/
+
     c.Header("access-control-allow-origin","*")
     c.JSON(200,gin.H{
-        "auth" :true, 
+        "token" :tokenString, 
+    })
+}
+
+func validateToken(c *gin.Context) {
+    type Token struct {
+        AuthToken string `json:"token"`
+    }
+    var u Token
+    c.BindJSON(&u)
+
+    //Decoding
+    claims := &Claims{}
+
+    _, err := jwt.ParseWithClaims(u.AuthToken, claims, func(token *jwt.Token) (interface{}, error) {
+		return jwtKey, nil
+    })
+    
+    if err != nil {
+        // If there is an error in parsin the JWT return an internal server error
+        fmt.Println("error", err.Error())
+        c.JSON(401, gin.H{
+            "error" : err.Error(),
+        })
+        return
+    }
+    c.JSON(200, gin.H{
+        "username" : claims.Username,
     })
 }
